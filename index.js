@@ -71,7 +71,7 @@ app.post('/api/tournaments', async (req, res) => {
 });
 
 // ── NEU: zufällige Teams generieren ───────────────────────────────────
-app.post('/api/teams', (req, res) => {
+app.post('/api/teams', async (req, res) => {
   const { players, teamSize } = req.body;
 
   if (
@@ -95,7 +95,40 @@ app.post('/api/teams', (req, res) => {
     teams.push(shuffled.slice(i, i + teamSize));
   }
 
-  res.json({ success: true, teams });
+  const teamNames = teams.map(team => team.join(' + '));
+
+// auf 2^n auffüllen
+const nextPower = 2 ** Math.ceil(Math.log2(teamNames.length));
+while (teamNames.length < nextPower) teamNames.push('--- Freilos ---');
+
+// Matches erstellen
+const matches = [];
+for (let i = 0; i < teamNames.length; i += 2) {
+  matches.push({
+    player1: teamNames[i],
+    player2: teamNames[i + 1],
+    winner: null,
+  });
+}
+for (const m of matches) {
+  if (m.player1 === '--- Freilos ---' && m.player2 === '--- Freilos ---') {
+    m.winner = m.player1;
+  }
+}
+
+// Turnier speichern
+const { data: inserted, error } = await supabase
+  .from('tournaments')
+  .insert([{ name: 'Team-Turnier', data: { rounds: [matches] } }])
+  .select();
+
+if (error) {
+  console.error('Supabase INSERT Fehler (Team-Turnier):', error);
+  return res.status(500).json({ error: error.message });
+}
+
+res.json({ success: true, id: inserted[0].id, teams });
+
 });
 
 // ── Sonstige Routen (Turnierverwaltung) ───────────────────────────────
