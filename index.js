@@ -9,6 +9,14 @@ const port = process.env.PORT || 3000;
 app.use(cors());
 app.use(bodyParser.json());
 
+const corsOptions = {
+  origin: '*', // Für Entwicklung — für Produktion bitte spezifisch machen
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type'],
+};
+
+app.use(cors(corsOptions));
+
 // ── Supabase ──────────────────────────────────────────────────────────
 const supabase = createClient(
   'https://messymbdttzqklkqqrds.supabase.co',
