@@ -9,11 +9,14 @@ const port = process.env.PORT || 3000;
 app.use(cors());
 app.use(bodyParser.json());
 
-// Supabase konfigurieren
+// ── Supabase ──────────────────────────────────────────────────────────
 const supabase = createClient(
   'https://messymbdttzqklkqqrds.supabase.co',
   'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1lc3N5bWJkdHR6cWtsa3FxcmRzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTE2NTU4NzcsImV4cCI6MjA2NzIzMTg3N30.FYeN-Mo18yIyoopoJAlfLDx-1iqrrABgDuJBT1Zq7WM'
-);app.post('/api/tournaments', async (req, res) => {
+);
+
+// ── Turnier erstellen (KO‑System) ────────────────────────────────────
+app.post('/api/tournaments', async (req, res) => {
   const { name, players } = req.body;
 
   if (!name || !Array.isArray(players) || players.length < 2) {
@@ -30,9 +33,7 @@ const supabase = createClient(
   const nextPower = 2 ** Math.ceil(Math.log2(shuffled.length));
   while (shuffled.length < nextPower) shuffled.push('--- Freilos ---');
 
-  // ❗ HIER war dein Fehler – matches fehlte
   const matches = [];
-
   for (let i = 0; i < shuffled.length; i += 2) {
     matches.push({
       player1: shuffled[i],
@@ -41,12 +42,10 @@ const supabase = createClient(
     });
   }
 
-  for (let j = 0; j < matches.length; j++) {
-    if (
-      matches[j].player1 === '--- Freilos ---' &&
-      matches[j].player2 === '--- Freilos ---'
-    ) {
-      matches[j].winner = matches[j].player1;
+  // Freilose sofort weiter
+  for (const m of matches) {
+    if (m.player1 === '--- Freilos ---' && m.player2 === '--- Freilos ---') {
+      m.winner = m.player1;
     }
   }
 
@@ -56,25 +55,48 @@ const supabase = createClient(
     .select();
 
   if (error) {
-    console.error("Supabase INSERT Fehler:", error);
+    console.error('Supabase INSERT Fehler:', error);
     return res.status(500).json({ error: error.message });
   }
 
   res.json({ success: true, id: inserted[0].id });
 });
 
+// ── NEU: zufällige Teams generieren ───────────────────────────────────
+app.post('/api/teams', (req, res) => {
+  const { players, teamSize } = req.body;
 
-// Alle Turniere abrufen
+  if (
+    !Array.isArray(players) ||
+    players.length < 2 ||
+    !Number.isInteger(teamSize) ||
+    teamSize < 2
+  ) {
+    return res.status(400).json({ message: 'Ungültige Daten' });
+  }
+
+  // Shuffle
+  const shuffled = players
+    .map(p => ({ sort: Math.random(), value: p }))
+    .sort((a, b) => a.sort - b.sort)
+    .map(p => p.value);
+
+  // Chunk into teams
+  const teams = [];
+  for (let i = 0; i < shuffled.length; i += teamSize) {
+    teams.push(shuffled.slice(i, i + teamSize));
+  }
+
+  res.json({ success: true, teams });
+});
+
+// ── Sonstige Routen (Turnierverwaltung) ───────────────────────────────
 app.get('/api/tournaments', async (req, res) => {
-  const { data, error } = await supabase
-    .from('tournaments')
-    .select('id, name');
-
+  const { data, error } = await supabase.from('tournaments').select('id, name');
   if (error) return res.status(500).json({ error: error.message });
   res.json(data);
 });
 
-// Einzelnes Turnier
 app.get('/api/tournaments/:id', async (req, res) => {
   const { data, error } = await supabase
     .from('tournaments')
@@ -83,14 +105,11 @@ app.get('/api/tournaments/:id', async (req, res) => {
     .single();
 
   if (error) return res.status(404).json({ error: 'Nicht gefunden' });
-
   res.json(data);
 });
 
-// Turnier aktualisieren
 app.put('/api/tournaments/:id', async (req, res) => {
   const { data: newData } = req.body;
-
   if (!newData) return res.status(400).json({ error: 'Keine Turnierdaten im Body' });
 
   const { error } = await supabase
@@ -99,7 +118,6 @@ app.put('/api/tournaments/:id', async (req, res) => {
     .eq('id', req.params.id);
 
   if (error) return res.status(500).json({ error: error.message });
-
   res.json({ success: true });
 });
 
