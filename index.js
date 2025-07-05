@@ -70,6 +70,36 @@ app.post('/api/tournaments', async (req, res) => {
   res.json({ success: true, id: inserted[0].id });
 });
 
+// Intelligente Teamaufteilung mit Mindestgröße
+function splitIntoBalancedTeams(players, minSize) {
+  const total = players.length;
+
+  // Maximale Anzahl an Teams, die minSize erfüllen
+  let maxTeams = Math.floor(total / minSize);
+
+  // Suche die optimale Verteilung (Teams ähnlich groß)
+  for (let numTeams = maxTeams; numTeams >= 1; numTeams--) {
+    const baseSize = Math.floor(total / numTeams);
+    const extras = total % numTeams;
+
+    if (baseSize < minSize) continue;
+
+    const result = [];
+    let i = 0;
+    for (let t = 0; t < numTeams; t++) {
+      const size = t < extras ? baseSize + 1 : baseSize;
+      result.push(players.slice(i, i + size));
+      i += size;
+    }
+    return result;
+  }
+
+  return [players]; // Falls nichts passt, alles in 1 Team
+}
+
+
+
+
 // ── NEU: zufällige Teams generieren ───────────────────────────────────
 app.post('/api/teams', async (req, res) => {
   const { players, teamSize } = req.body;
@@ -90,10 +120,7 @@ app.post('/api/teams', async (req, res) => {
     .map(p => p.value);
 
   // Chunk into teams
-  const teams = [];
-  for (let i = 0; i < shuffled.length; i += teamSize) {
-    teams.push(shuffled.slice(i, i + teamSize));
-  }
+  const teams = splitIntoBalancedTeams(shuffled, teamSize);
 
   const teamNames = teams.map(team => team.join(' + '));
 
