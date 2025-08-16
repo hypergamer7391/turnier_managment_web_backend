@@ -25,7 +25,7 @@ const supabase = createClient(
 
 // ── Turnier erstellen (KO‑System) ────────────────────────────────────
 app.post('/api/tournaments', async (req, res) => {
-  const { name, players } = req.body;
+  const { name, players, withNebenrunde } = req.body;
 
   if (!name || !Array.isArray(players) || players.length < 2) {
     return res.status(400).json({ message: 'Ungültige Daten' });
@@ -57,6 +57,7 @@ app.post('/api/tournaments', async (req, res) => {
     }
   }
 
+  // Hauptturnier anlegen
   const { data: inserted, error } = await supabase
     .from('tournaments')
     .insert([{ name, data: { rounds: [matches] } }])
@@ -67,7 +68,22 @@ app.post('/api/tournaments', async (req, res) => {
     return res.status(500).json({ error: error.message });
   }
 
-  res.json({ success: true, id: inserted[0].id });
+  let nebenrundeId = null;
+  // Nebenrunde anlegen, falls gewünscht
+  if (withNebenrunde) {
+    const { data: nebenrunde, error: nebenrundeError } = await supabase
+      .from('tournaments')
+      .insert([{ name: name + ' (Nebenrunde)', data: { rounds: [] } }])
+      .select();
+    if (nebenrundeError) {
+      console.error('Supabase INSERT Fehler (Nebenrunde):', nebenrundeError);
+      // Hauptturnier wurde schon angelegt, daher trotzdem success
+    } else {
+      nebenrundeId = nebenrunde[0].id;
+    }
+  }
+
+  res.json({ success: true, id: inserted[0].id, nebenrundeId });
 });
 
 // Intelligente Teamaufteilung mit Mindestgröße
