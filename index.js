@@ -25,9 +25,9 @@ const supabase = createClient(
 
 // ── Turnier erstellen (KO‑System) ────────────────────────────────────
 app.post('/api/tournaments', async (req, res) => {
-  const { name, players, withNebenrunde } = req.body;
+  const { title, participants, startDate, game, players, withNebenrunde } = req.body;
 
-  if (!name || !Array.isArray(players) || players.length < 2) {
+  if (!title || !Array.isArray(players) || players.length < 2) {
     return res.status(400).json({ message: 'Ungültige Daten' });
   }
 
@@ -60,7 +60,7 @@ app.post('/api/tournaments', async (req, res) => {
   // Hauptturnier anlegen
   const { data: inserted, error } = await supabase
     .from('tournaments')
-    .insert([{ name, data: { rounds: [matches] } }])
+    .insert([{ title, data: { rounds: [matches] } }])
     .select();
 
   if (error) {
