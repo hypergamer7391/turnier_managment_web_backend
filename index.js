@@ -176,7 +176,7 @@ res.json({ success: true, id: inserted[0].id, teams });
 
 // ── Sonstige Routen (Turnierverwaltung) ───────────────────────────────
 app.get('/api/tournaments', async (req, res) => {
-  const { data, error } = await supabase.from('tournaments').select('id, title, participants, startDate, game, status, ');
+  const { data, error } = await supabase.from('tournaments').select('id, title, participants, startDate, game, status');
   if (error) return res.status(500).json({ error: error.message });
   res.json(data);
 });
