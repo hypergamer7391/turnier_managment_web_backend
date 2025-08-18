@@ -60,7 +60,7 @@ app.post('/api/tournaments', async (req, res) => {
   // Hauptturnier anlegen
   const { data: inserted, error } = await supabase
     .from('tournaments')
-    .insert([{ title, data: { rounds: [matches] } }])
+    .insert([{ title, data: { rounds: [matches] } }, participants, startDate, "active", game])
     .select();
 
   if (error) {
